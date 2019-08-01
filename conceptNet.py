@@ -1,8 +1,10 @@
 import pandas as pd
 import os
 import numpy as np
+import time
 
 
+# TODO: fill langs list
 lang_dict = {
     'english': 'en'
 }
@@ -10,6 +12,7 @@ lang_dict = {
 
 class ConceptNet():
     def __init__(self, data_path, language=None, save_language=False):
+        # Check extenstion and load data to pandas dataframe
         base, extention = os.path.splitext(data_path)
         if extention == '.csv':
             df = pd.read_csv(data_path, sep='\t', header=None,
@@ -17,17 +20,20 @@ class ConceptNet():
         elif extention == '.pkl':
             df = pd.read_pickle(data_path)
 
+        # strip non-relevant languages (a lot of free memory)
         if language is not None:
             lang_abbr = '/' + get_language_abbr(language) + '/'
             index = df[~df.start.str.contains(lang_abbr)].index
             df.drop(index, inplace=True)
             index = df[~df.end.str.contains(lang_abbr)].index
             df.drop(index, inplace=True)
+            # save if needed for further use
             if save_language:
                 df.to_pickle(base + '_' + language + '.pkl')
 
         self.df = df
 
+    # Functions to query relevant fields
     def get_edges_from_start(self, start_tokens, dataframe=None):
         start_tokens = self.process_tokens(start_tokens)
         if dataframe is None:
@@ -52,7 +58,10 @@ class ConceptNet():
             edges = dataframe[dataframe.relation.str.contains('|'.join(relation_tokens))]
         return edges
 
-    def get_query(self, start=None, end=None, relation=None):
+    # Full query for all possible fields
+    def get_query(self, start=None, end=None, relation=None, timing=False):
+        if timing:
+            start_time = time.time()
         edges = self.df
         if start is not None:
             edges = self.get_edges_from_start(start, dataframe=edges)
@@ -60,8 +69,14 @@ class ConceptNet():
             edges = self.get_edges_to_end(end, dataframe=edges)
         if relation is not None:
             edges = self.get_edges_by_relation(relation, dataframe=edges)
+        # make a copy of small portion of data
+        # you can then work on and change small queries without changing main
         edges = edges.copy()
+        # reset indices - mainly because it looks much nicer
         edges.reset_index(drop=True, inplace=True)
+        if timing:
+            time_passed = time.time() - start_time
+            print("Query returned in %.4f", )
         return EdgeFrame(edges)
 
     def process_tokens(self, token_list, relation=False):
@@ -71,13 +86,17 @@ class ConceptNet():
             # lower case as the concept net is
             if not relation:
                 new_token = token.lower().replace(' ', '_')
-            # put regex such that word starts with / (like /c/en/word)
+            # Put regex such that word starts with / (like /c/en/word)
             # and ends up with / or nothing - in order to match exact words
-            # new_token = '(?<!wp|wn)\\/' + new_token + '[\\/]|(?<!wp|wn)\\/' + new_token + '$'
-            new_token = '^\\/[^\\/]*\\/[^\\/]*\\/' + new_token + '\\/|^\\/[^\\/]*\\/[^\\/]*\\/' + new_token + '$'
-            # new_token = '\\/' + new_token
+            # Basically mach the exact word after two preceeding symbols
+            # beginning with /
+            new_token = ('^\\/[^\\/]*\\/[^\\/]*\\/' + new_token +
+                         '\\/|^\\/[^\\/]*\\/[^\\/]*\\/' + new_token + '$')
             processed_list.append(new_token)
         return processed_list
+
+    def __len__(self):
+        return len(self.df)
 
 
 class EdgeFrame(ConceptNet):
@@ -89,16 +108,14 @@ class EdgeFrame(ConceptNet):
 
     def process_data(self):
         self.processed_df = self.df.copy()
-        # print(self.processed_df.columns.values)
-        # print(self.processed_df)
         self.processed_df = self.processed_df.reindex(columns=(list(self.processed_df.columns.values) + ['startPoS', 'endPoS', 'startHypernym', 'endHypernym', 'startSurface', 'endSurface', 'surfaceText', 'weight']))
-        self.processed_df[['start', 'startPoS', 'startHypernym']] = self.processed_df[['start', 'startPoS', 'startHypernym']].apply(process_node_tokens, axis=1)
-        self.processed_df[['end', 'endPoS', 'endHypernym']] = self.processed_df[['end', 'endPoS', 'endHypernym']].apply(process_node_tokens, axis=1)
-        self.processed_df[['startSurface', 'endSurface', 'surfaceText', 'weight']] = self.processed_df[['JSON']].apply(process_JSON, axis=1)
-        self.processed_df['relation'] = self.processed_df['relation'].map(process_relation)
+        # Deal with empty query case
+        if len(self.processed_df) != 0:
+            self.processed_df[['start', 'startPoS', 'startHypernym']] = self.processed_df[['start', 'startPoS', 'startHypernym']].apply(process_node_tokens, axis=1)
+            self.processed_df[['end', 'endPoS', 'endHypernym']] = self.processed_df[['end', 'endPoS', 'endHypernym']].apply(process_node_tokens, axis=1)
+            self.processed_df[['startSurface', 'endSurface', 'surfaceText', 'weight']] = self.processed_df[['JSON']].apply(process_JSON, axis=1)
+            self.processed_df['relation'] = self.processed_df['relation'].map(process_relation)
         self.processed_df.drop(columns=['URI', 'JSON'], inplace=True)
-        # process_node_tokens(self.processed_df.start)
-        # print(list(self.processed_df.columns.values) + ['startPoS', 'endPoS', 'hyperymStart', 'hypernymEnd'])
 
 
 def process_node_tokens(cols):

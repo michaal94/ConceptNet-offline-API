@@ -18,6 +18,7 @@ print(dog.processed_df.to_string())
 dog_cat = dog.get_query(end=['cat'])
 dog_cat.process_data()
 print(dog_cat.processed_df.to_string())
+# print(len(conceptnet))
 
 # print(a.processed_df.JSON.to_string())
 # print(a.processed_df.JSON[0]['surfaceEnd'])
