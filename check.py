@@ -2,10 +2,12 @@ from conceptNet import ConceptNet
 import time
 
 # conceptnet = ConceptNet('assertions.csv', language='english', save_language=True)
+
+
 conceptnet = ConceptNet('assertions_english.pkl')
 start_time = time.time()
 # a = conceptnet.get_query(start=['apple'])
-dog = conceptnet.get_query(start=['dog'])
+dog = conceptnet.get_query(start='dog', end=['cat', 'car'])
 # raw_data = a.get_raw_dataframe()
 end_time = time.time()
 # print(end_time - start_time)

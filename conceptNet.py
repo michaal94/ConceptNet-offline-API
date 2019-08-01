@@ -22,14 +22,17 @@ class ConceptNet():
 
         # strip non-relevant languages (a lot of free memory)
         if language is not None:
-            lang_abbr = '/' + get_language_abbr(language) + '/'
-            index = df[~df.start.str.contains(lang_abbr)].index
+            if not isinstance(language, list):
+                language = [language]
+            lang_abbr = ['/' + get_language_abbr(l) + '/' for l in language]
+            query = '|'.join(lang_abbr)
+            index = df[~df.start.str.contains(query)].index
             df.drop(index, inplace=True)
-            index = df[~df.end.str.contains(lang_abbr)].index
+            index = df[~df.end.str.contains(query)].index
             df.drop(index, inplace=True)
             # save if needed for further use
             if save_language:
-                df.to_pickle(base + '_' + language + '.pkl')
+                df.to_pickle(base + '_' + language[0] + '.pkl')
 
         self.df = df
 
@@ -64,10 +67,16 @@ class ConceptNet():
             start_time = time.time()
         edges = self.df
         if start is not None:
+            if not isinstance(start, list):
+                start = [start]
             edges = self.get_edges_from_start(start, dataframe=edges)
         if end is not None:
+            if not isinstance(end, list):
+                end = [end]
             edges = self.get_edges_to_end(end, dataframe=edges)
         if relation is not None:
+            if not isinstance(end, list):
+                end = [end]
             edges = self.get_edges_by_relation(relation, dataframe=edges)
         # make a copy of small portion of data
         # you can then work on and change small queries without changing main
