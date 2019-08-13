@@ -40,6 +40,6 @@ query_result = database.get_query(start=['start'], end=['end1', 'end2'], relatio
 Arguments:
  - `start` - word to be found in the starting node
  - `end` - word to be found in the end node
- - `relation` - relation type (take a look at ConceptNet documentation for the list of possibilities)
+ - `relation` - relation type [(take a look at ConceptNet documentation for the list of possibilities)](https://github.com/commonsense/conceptnet5/wiki/Relations)
 
 All the arguments take either string or list of strings for the query.
