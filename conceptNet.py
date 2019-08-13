@@ -67,16 +67,16 @@ class ConceptNet():
             start_time = time.time()
         edges = self.df
         if start is not None:
-            if not isinstance(start, list):
-                start = [start]
+            # if not isinstance(start, list):
+            #     start = [start]
             edges = self.get_edges_from_start(start, dataframe=edges)
         if end is not None:
-            if not isinstance(end, list):
-                end = [end]
+            # if not isinstance(end, list):
+            #     end = [end]
             edges = self.get_edges_to_end(end, dataframe=edges)
         if relation is not None:
-            if not isinstance(end, list):
-                end = [end]
+            # if not isinstance(end, list):
+            #     end = [end]
             edges = self.get_edges_by_relation(relation, dataframe=edges)
         # make a copy of small portion of data
         # you can then work on and change small queries without changing main
@@ -85,23 +85,29 @@ class ConceptNet():
         edges.reset_index(drop=True, inplace=True)
         if timing:
             time_passed = time.time() - start_time
-            print("Query returned in %.4f", )
+            print("Query returned in %.4f" % time_passed)
         return EdgeFrame(edges)
 
     def process_tokens(self, token_list, relation=False):
+        if not isinstance(token_list, list):
+            token_list = [token_list]
         processed_list = []
         for token in token_list:
             new_token = token
             # lower case as the concept net is
             if not relation:
                 new_token = token.lower().replace(' ', '_')
-            # Put regex such that word starts with / (like /c/en/word)
-            # and ends up with / or nothing - in order to match exact words
-            # Basically mach the exact word after two preceeding symbols
-            # beginning with /
-            new_token = ('^\\/[^\\/]*\\/[^\\/]*\\/' + new_token +
-                         '\\/|^\\/[^\\/]*\\/[^\\/]*\\/' + new_token + '$')
+                # Put regex such that word starts with / (like /c/en/word)
+                # and ends up with / or nothing - in order to match exact words
+                # Basically mach the exact word after two preceeding symbols
+                # beginning with /
+                new_token = ('^\\/[^\\/]*\\/[^\\/]*\\/' + new_token +
+                             '\\/|^\\/[^\\/]*\\/[^\\/]*\\/' + new_token + '$')
+            else:
+                new_token = ('^\\/[^\\/]*\\/' + new_token +
+                             '\\/|^\\/[^\\/]*\\/' + new_token + '$')
             processed_list.append(new_token)
+        # print(processed_list)
         return processed_list
 
     def __len__(self):
@@ -128,8 +134,16 @@ class EdgeFrame(ConceptNet):
 
 
 def process_node_tokens(cols):
-    split = cols[0].strip('/').split('/')[2:]
+    # Check for URL and leave it as it is if exists in node
+    if 'http' in cols[0]:
+        split = cols[0]
+    else:
+        # Strip leading '/' and split by '/'s
+        split = cols[0].strip('/').split('/')[2:]
+    if not isinstance(split, list):
+        split = [split]
     name, pos, hypernym = np.nan, np.nan, np.nan
+    # Extract PoS tag or 'family' word based on how nodes are constructed
     if len(split) > 2:
         if split[2] in ['wp', 'wn']:
             hypernym = split[3]
@@ -141,6 +155,7 @@ def process_node_tokens(cols):
 
 
 def process_relation(relation):
+    # Relation is much easier cause of 2 possibilities
     split = relation.strip('/').split('/')
     if len(split) > 2:
         return split[2]
@@ -149,6 +164,8 @@ def process_relation(relation):
 
 
 def process_JSON(json_col):
+    # Extract JSON data from database
+    # Eval to go from str to dict
     json_col = eval(json_col.values[0])
     startSurface, endSurface, surfaceText, weight = np.nan, np.nan, np.nan, np.nan
     if 'surfaceStart' in json_col:
